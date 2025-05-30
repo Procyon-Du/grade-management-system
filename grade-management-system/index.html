@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        accent: '#f97316',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        info: '#06b6d4',
+                        light: '#f8fafc',
+                        dark: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .btn-hover {
+                @apply transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5;
+            }
+            .nav-link {
+                @apply relative px-4 py-2 text-gray-600 hover:text-primary transition-colors duration-200;
+            }
+            .nav-link::after {
+                @apply content-[''] absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
+            }
+            .nav-link:hover::after {
+                @apply w-full;
+            }
+            .active {
+                @apply text-primary font-medium;
+            }
+            .active::after {
+                @apply w-full;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-graduation-cap text-primary text-2xl"></i>
+                <span class="text-xl font-bold text-gray-800">成绩管理系统</span>
+            </div>
+
+            <div class="hidden md:flex items-center space-x-1">
+                <a href="#dashboard" class="nav-link active">仪表盘</a>
+                <a href="#input" class="nav-link">成绩录入</a>
+                <a href="#statistics" class="nav-link">统计分析</a>
+                <a href="#export" class="nav-link">导出报告</a>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa fa-moon-o text-gray-600"></i>
+                </button>
+                <button id="profile-btn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa fa-user-o text-gray-600"></i>
+                </button>
+                <button id="mobile-menu-btn" class="md:hidden p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa fa-bars text-gray-600"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-2">
+                <a href="#dashboard" class="py-2 px-4 hover:bg-gray-50 rounded-md transition-colors active">仪表盘</a>
+                <a href="#input" class="py-2 px-4 hover:bg-gray-50 rounded-md transition-colors">成绩录入</a>
+                <a href="#statistics" class="py-2 px-4 hover:bg-gray-50 rounded-md transition-colors">统计分析</a>
+                <a href="#export" class="py-2 px-4 hover:bg-gray-50 rounded-md transition-colors">导出报告</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="flex-grow container mx-auto px-4 py-6">
+        <!-- 欢迎信息 -->
+        <section id="dashboard" class="mb-8">
+            <div class="bg-gradient-to-r from-primary/90 to-primary rounded-2xl p-6 text-white shadow-lg">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <div>
+                        <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-2">欢迎使用成绩管理系统</h1>
+                        <p class="text-blue-100 max-w-2xl">高效管理学生成绩，智能分析教学数据，助力教育评估与决策</p>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <button id="quick-add-btn"
+                            class="bg-white text-primary px-6 py-3 rounded-lg font-medium shadow-md btn-hover">
+                            <i class="fa fa-plus mr-2"></i>快速录入成绩
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据概览卡片 -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 mb-1">学生总数</p>
+                        <h3 class="text-3xl font-bold" id="student-count">0</h3>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fa fa-users text-primary text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <span class="text-success text-sm"><i class="fa fa-arrow-up"></i> 5.2% 较上月</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 mb-1">平均分数</p>
+                        <h3 class="text-3xl font-bold" id="avg-score">0</h3>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fa fa-line-chart text-success text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <span class="text-success text-sm"><i class="fa fa-arrow-up"></i> 2.8% 较上月</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 mb-1">及格率</p>
+                        <h3 class="text-3xl font-bold" id="pass-rate">0%</h3>
+                    </div>
+                    <div class="bg-yellow-100 p-3 rounded-full">
+                        <i class="fa fa-check-circle text-warning text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <span class="text-success text-sm"><i class="fa fa-arrow-up"></i> 3.1% 较上月</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover:shadow-lg transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 mb-1">课程数量</p>
+                        <h3 class="text-3xl font-bold" id="course-count">0</h3>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fa fa-book text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <span class="text-danger text-sm"><i class="fa fa-arrow-down"></i> 1.5% 较上月</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 成绩录入与管理 -->
+        <section id="input" class="mb-10">
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">成绩录入与管理</h2>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative">
+                            <input type="text" id="search-input" placeholder="搜索学生或课程..."
+                                class="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <button id="add-student-btn"
+                            class="bg-primary text-white px-4 py-2 rounded-lg font-medium btn-hover">
+                            <i class="fa fa-plus mr-2"></i>添加学生
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- 导入Excel区域 -->
+                    <div class="w-full md:w-1/3 bg-gray-50 rounded-lg p-5 border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                            <i class="fa fa-file-excel-o text-green-600 mr-2"></i> 批量导入
+                        </h3>
+                        <p class="text-gray-500 text-sm mb-4">通过Excel文件批量导入学生成绩，支持.xlsx和.xls格式</p>
+
+                        <div id="drop-area"
+                            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
+                            <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-500 mb-2">拖放Excel文件到此处</p>
+                            <p class="text-gray-400 text-sm">或</p>
+                            <label for="file-upload"
+                                class="bg-primary/10 text-primary px-4 py-2 rounded-lg inline-block mt-2 cursor-pointer font-medium">
+                                选择文件
+                            </label>
+                            <input type="file" id="file-upload" accept=".xlsx,.xls" class="hidden">
+                        </div>
+
+                        <div id="file-info" class="mt-4 hidden">
+                            <div
+                                class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+                                <div class="flex items-center">
+                                    <i class="fa fa-file-excel-o text-green-600 mr-2"></i>
+                                    <div>
+                                        <p id="file-name" class="font-medium text-gray-700">filename.xlsx</p>
+                                        <p id="file-size" class="text-xs text-gray-500">2.4 MB</p>
+                                    </div>
+                                </div>
+                                <button id="upload-btn"
+                                    class="bg-primary text-white px-3 py-1 rounded-md text-sm btn-hover">
+                                    上传
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 成绩表格 -->
+                    <div class="w-full md:w-2/3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                                <i class="fa fa-table text-primary mr-2"></i> 成绩表
+                            </h3>
+                            <div class="flex gap-2">
+                                <select id="course-filter"
+                                    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <option value="all">所有课程</option>
+                                    <option value="math">数学</option>
+                                    <option value="chinese">语文</option>
+                                    <option value="english">英语</option>
+                                </select>
+                                <button id="refresh-btn"
+                                    class="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <i class="fa fa-refresh text-gray-600"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg">
+                                <thead>
+                                    <tr class="bg-gray-50 text-left text-gray-600 uppercase text-sm leading-normal">
+                                        <th class="py-3 px-4 rounded-tl-lg">学号</th>
+                                        <th class="py-3 px-4">姓名</th>
+                                        <th class="py-3 px-4">课程</th>
+                                        <th class="py-3 px-4">成绩</th>
+                                        <th class="py-3 px-4 rounded-tr-lg">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="grades-table-body" class="text-gray-600 text-sm">
+                                    <!-- 表格内容将通过JavaScript动态生成 -->
+                                    <tr class="text-center">
+                                        <td colspan="5" class="py-8 text-gray-400">
+                                            <i class="fa fa-folder-open-o text-3xl mb-2"></i>
+                                            <p>暂无成绩数据</p>
+                                            <p class="text-xs mt-1">请导入Excel文件或添加学生成绩</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <p class="text-sm text-gray-500">显示 1-10 条，共 0 条</p>
+                            <div class="flex space-x-1">
+                                <button
+                                    class="px-3 py-1 rounded border border-gray-200 text-gray-400 cursor-not-allowed">上一页</button>
+                                <button class="px-3 py-1 rounded border border-primary bg-primary text-white">1</button>
+                                <button
+                                    class="px-3 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">2</button>
+                                <button
+                                    class="px-3 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">3</button>
+                                <button
+                                    class="px-3 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">下一页</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 成绩统计分析 -->
+        <section id="statistics" class="mb-10">
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">成绩统计分析</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 成绩分布图表 -->
+                    <div class="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                                <i class="fa fa-bar-chart text-primary mr-2"></i> 成绩分布
+                            </h3>
+                            <select id="distribution-filter"
+                                class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                <option value="math">数学</option>
+                                <option value="chinese">语文</option>
+                                <option value="english">英语</option>
+                            </select>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="distribution-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 统计数据卡片 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-5 border border-blue-100">
+                            <h3 class="text-sm font-medium text-gray-500 mb-2">平均分</h3>
+                            <div class="flex items-end justify-between">
+                                <div>
+                                    <span id="avg-score-value" class="text-3xl font-bold text-gray-800">0</span>
+                                    <span class="text-gray-500 ml-1">/ 100</span>
+                                </div>
+                                <div class="text-blue-500">
+                                    <i class="fa fa-arrow-up"></i> 2.5%
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="avg-score-progress" class="h-full bg-gradient-to-r from-blue-400 to-indigo-500"
+                                    style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-5 border border-green-100">
+                            <h3 class="text-sm font-medium text-gray-500 mb-2">最高分</h3>
+                            <div class="flex items-end justify-between">
+                                <div>
+                                    <span id="max-score-value" class="text-3xl font-bold text-gray-800">0</span>
+                                    <span class="text-gray-500 ml-1">/ 100</span>
+                                </div>
+                                <div class="text-green-500">
+                                    <i class="fa fa-arrow-up"></i> 1.2%
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="max-score-progress"
+                                    class="h-full bg-gradient-to-r from-green-400 to-emerald-500" style="width: 0%">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-red-50 to-rose-50 rounded-lg p-5 border border-red-100">
+                            <h3 class="text-sm font-medium text-gray-500 mb-2">最低分</h3>
+                            <div class="flex items-end justify-between">
+                                <div>
+                                    <span id="min-score-value" class="text-3xl font-bold text-gray-800">0</span>
+                                    <span class="text-gray-500 ml-1">/ 100</span>
+                                </div>
+                                <div class="text-red-500">
+                                    <i class="fa fa-arrow-down"></i> 0.8%
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="min-score-progress" class="h-full bg-gradient-to-r from-red-400 to-rose-500"
+                                    style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-5 border border-yellow-100">
+                            <h3 class="text-sm font-medium text-gray-500 mb-2">及格率</h3>
+                            <div class="flex items-end justify-between">
+                                <div>
+                                    <span id="pass-rate-value" class="text-3xl font-bold text-gray-800">0%</span>
+                                </div>
+                                <div class="text-yellow-500">
+                                    <i class="fa fa-arrow-up"></i> 4.3%
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="pass-rate-progress"
+                                    class="h-full bg-gradient-to-r from-yellow-400 to-amber-500" style="width: 0%">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 课程对比图表 -->
+                <div class="mt-6 bg-gray-50 rounded-lg p-5 border border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                            <i class="fa fa-line-chart text-primary mr-2"></i> 课程平均分对比
+                        </h3>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 rounded-lg bg-primary text-white text-sm btn-hover">
+                                本学期
+                            </button>
+                            <button
+                                class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors">
+                                上学期
+                            </button>
+                        </div>
+                    </div>
+                    <div class="h-80">
+                        <canvas id="course-comparison-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据导出与报告 -->
+        <section id="export" class="mb-10">
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">数据导出与报告</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 导出PDF成绩单 -->
+                    <div class="bg-gradient-to-br from-blue-50 to-primary/5 rounded-lg p-6 border border-blue-100">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    <i class="fa fa-file-pdf-o text-red-500 mr-2"></i> 导出PDF成绩单
+                                </h3>
+                                <p class="text-gray-500 text-sm mt-1">将学生成绩以PDF格式导出，支持自定义排版</p>
+                            </div>
+                            <div class="bg-primary/10 p-3 rounded-full">
+                                <i class="fa fa-download text-primary"></i>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">选择课程</label>
+                                <select
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <option value="all">所有课程</option>
+                                    <option value="math">数学</option>
+                                    <option value="chinese">语文</option>
+                                    <option value="english">英语</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">排序方式</label>
+                                <select
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <option value="name">按姓名排序</option>
+                                    <option value="score-desc">按成绩从高到低</option>
+                                    <option value="score-asc">按成绩从低到高</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">包含统计信息</label>
+                                <div class="flex items-center space-x-4">
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-primary focus:ring-primary" checked>
+                                        <span class="ml-2 text-sm text-gray-700">平均分</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-primary focus:ring-primary" checked>
+                                        <span class="ml-2 text-sm text-gray-700">最高分</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-primary focus:ring-primary" checked>
+                                        <span class="ml-2 text-sm text-gray-700">最低分</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button id="export-pdf-btn"
+                                class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center">
+                                <i class="fa fa-file-pdf-o mr-2"></i> 导出PDF成绩单
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 生成班级成绩分析报告 -->
+                    <div class="bg-gradient-to-br from-green-50 to-success/5 rounded-lg p-6 border border-green-100">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    <i class="fa fa-bar-chart text-success mr-2"></i> 班级成绩分析报告
+                                </h3>
+                                <p class="text-gray-500 text-sm mt-1">生成详细的班级成绩分析报告，包含图表和统计数据</p>
+                            </div>
+                            <div class="bg-success/10 p-3 rounded-full">
+                                <i class="fa fa-file-text-o text-success"></i>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">选择班级</label>
+                                <select
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <option value="all">全年级</option>
+                                    <option value="class1">一年级一班</option>
+                                    <option value="class2">一年级二班</option>
+                                    <option value="class3">一年级三班</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">报告周期</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="date"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <span class="text-gray-500">至</span>
+                                    <input type="date"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">报告内容</label>
+                                <div class="space-y-2">
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-success focus:ring-success" checked>
+                                        <span class="ml-2 text-sm text-gray-700">成绩分布图表</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-success focus:ring-success" checked>
+                                        <span class="ml-2 text-sm text-gray-700">课程对比分析</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-success focus:ring-success" checked>
+                                        <span class="ml-2 text-sm text-gray-700">学生表现排名</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" class="rounded text-success focus:ring-success" checked>
+                                        <span class="ml-2 text-sm text-gray-700">趋势分析</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button id="generate-report-btn"
+                                class="w-full bg-success hover:bg-success/90 text-white py-2 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center">
+                                <i class="fa fa-file-text-o mr-2"></i> 生成分析报告
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近导出记录 -->
+                <div class="mt-6 bg-white rounded-lg p-5 border border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                            <i class="fa fa-history text-primary mr-2"></i> 最近导出记录
+                        </h3>
+                        <button class="text-primary text-sm hover:underline">查看全部</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="bg-gray-50 text-left text-gray-600 uppercase text-sm leading-normal">
+                                    <th class="py-3 px-4 rounded-tl-lg">文件名</th>
+                                    <th class="py-3 px-4">类型</th>
+                                    <th class="py-3 px-4">时间</th>
+                                    <th class="py-3 px-4 rounded-tr-lg">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="export-history" class="text-gray-600 text-sm">
+                                <!-- 表格内容将通过JavaScript动态生成 -->
+                                <tr class="text-center">
+                                    <td colspan="4" class="py-8 text-gray-400">
+                                        <i class="fa fa-clock-o text-3xl mb-2"></i>
+                                        <p>暂无导出记录</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-6">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa fa-graduation-cap text-primary text-xl"></i>
+                        <span class="text-lg font-bold text-gray-800">成绩管理系统</span>
+                    </div>
+                    <p class="text-gray-500 text-sm mt-1">高效、智能的教育评估解决方案</p>
+                </div>
+
+                <div class="flex space-x-6 mb-4 md:mb-0">
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-linkedin text-xl"></i>
+                    </a>
+                </div>
+
+                <div>
+                    <p class="text-gray-500 text-sm">© 2025 成绩管理系统. 保留所有权利.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 添加学生模态框 -->
+    <div id="add-student-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl max-w-md w-full mx-4 overflow-hidden shadow-xl transform transition-all">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">添加学生成绩</h3>
+                    <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <form id="add-student-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">学号</label>
+                        <input type="text"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="请输入学号">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                        <input type="text"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="请输入姓名">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">课程</label>
+                        <select
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <option value="math">数学</option>
+                            <option value="chinese">语文</option>
+                            <option value="english">英语</option>
+                            <option value="physics">物理</option>
+                            <option value="chemistry">化学</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">成绩</label>
+                        <input type="number" min="0" max="100"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="请输入成绩">
+                    </div>
+
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancel-add-btn"
+                            class="px-4 py-2 border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            取消
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑成绩模态框 -->
+    <div id="edit-grade-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl max-w-md w-full mx-4 overflow-hidden shadow-xl transform transition-all">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">编辑成绩</h3>
+                    <button id="close-edit-modal-btn" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <form id="edit-grade-form">
+                    <input type="hidden" id="edit-student-id">
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">学号</label>
+                        <input type="text" id="edit-student-no"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            readonly>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                        <input type="text" id="edit-student-name"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            readonly>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">课程</label>
+                        <input type="text" id="edit-student-course"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            readonly>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">成绩</label>
+                        <input type="number" id="edit-student-score" min="0" max="100"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="请输入成绩">
+                    </div>
+
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancel-edit-btn"
+                            class="px-4 py-2 border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            取消
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
+                            更新
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知组件 -->
+    <div id="notification"
+        class="fixed top-4 right-4 max-w-sm w-full bg-white rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 overflow-hidden">
+        <div class="p-4 flex items-start">
+            <div id="notification-icon-container"
+                class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                <i id="notification-icon" class="fa fa-check text-white"></i>
+            </div>
+            <div class="ml-3">
+                <h3 id="notification-title" class="text-sm font-medium text-gray-800">成功</h3>
+                <p id="notification-message" class="text-sm text-gray-600 mt-1">操作已成功完成</p>
+            </div>
+            <button id="close-notification" class="ml-auto flex-shrink-0 text-gray-400 hover:text-gray-600">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 示例数据
+        const sampleData = [
+            { id: 1, studentId: '2025001', name: '张三', course: '数学', score: 85 },
+            { id: 2, studentId: '2025001', name: '张三', course: '语文', score: 92 },
+            { id: 3, studentId: '2025001', name: '张三', course: '英语', score: 88 },
+            { id: 4, studentId: '2025002', name: '李四', course: '数学', score: 76 },
+            { id: 5, studentId: '2025002', name: '李四', course: '语文', score: 81 },
+            { id: 6, studentId: '2025002', name: '李四', course: '英语', score: 95 },
+            { id: 7, studentId: '2025003', name: '王五', course: '数学', score: 90 },
+            { id: 8, studentId: '2025003', name: '王五', course: '语文', score: 78 },
+            { id: 9, studentId: '2025003', name: '王五', course: '英语', score: 83 },
+            { id: 10, studentId: '2025004', name: '赵六', course: '数学', score: 65 },
+            { id: 11, studentId: '2025004', name: '赵六', course: '语文', score: 72 },
+            { id: 12, studentId: '2025004', name: '赵六', course: '英语', score: 68 },
+            { id: 13, studentId: '2025005', name: '钱七', course: '数学', score: 94 },
+            { id: 14, studentId: '2025005', name: '钱七', course: '语文', score: 89 },
+            { id: 15, studentId: '2025005', name: '钱七', course: '英语', score: 91 }
+        ];
+
+        // DOM元素
+        const dropArea = document.getElementById('drop-area');
+        const fileUpload = document.getElementById('file-upload');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const uploadBtn = document.getElementById('upload-btn');
+        const gradesTableBody = document.getElementById('grades-table-body');
+        const addStudentBtn = document.getElementById('add-student-btn');
+        const quickAddBtn = document.getElementById('quick-add-btn');
+        const addStudentModal = document.getElementById('add-student-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const cancelAddBtn = document.getElementById('cancel-add-btn');
+        const addStudentForm = document.getElementById('add-student-form');
+        const editGradeModal = document.getElementById('edit-grade-modal');
+        const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const editGradeForm = document.getElementById('edit-grade-form');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const exportHistory = document.getElementById('export-history');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const notification = document.getElementById('notification');
+        const notificationTitle = document.getElementById('notification-title');
+        const notificationMessage = document.getElementById('notification-message');
+        const notificationIcon = document.getElementById('notification-icon');
+        const notificationIconContainer = document.getElementById('notification-icon-container');
+        const closeNotification = document.getElementById('close-notification');
+        const studentCount = document.getElementById('student-count');
+        const avgScore = document.getElementById('avg-score');
+        const passRate = document.getElementById('pass-rate');
+        const courseCount = document.getElementById('course-count');
+        const avgScoreValue = document.getElementById('avg-score-value');
+        const maxScoreValue = document.getElementById('max-score-value');
+        const minScoreValue = document.getElementById('min-score-value');
+        const passRateValue = document.getElementById('pass-rate-value');
+        const avgScoreProgress = document.getElementById('avg-score-progress');
+        const maxScoreProgress = document.getElementById('max-score-progress');
+        const minScoreProgress = document.getElementById('min-score-progress');
+        const passRateProgress = document.getElementById('pass-rate-progress');
+
+        // 全局变量
+        let currentFile = null;
+        let gradesData = [];
+
+        // 初始化页面
+        function init() {
+            // 加载示例数据
+            gradesData = [...sampleData];
+            updateGradesTable();
+            updateDashboardStats();
+            initCharts();
+            updateExportHistory();
+        }
+
+        // 更新成绩表格
+        function updateGradesTable() {
+            if (gradesData.length === 0) {
+                gradesTableBody.innerHTML = `
+                    <tr class="text-center">
+                        <td colspan="5" class="py-8 text-gray-400">
+                            <i class="fa fa-folder-open-o text-3xl mb-2"></i>
+                            <p>暂无成绩数据</p>
+                            <p class="text-xs mt-1">请导入Excel文件或添加学生成绩</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            gradesData.forEach(grade => {
+                html += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="py-3 px-4">${grade.studentId}</td>
+                        <td class="py-3 px-4">${grade.name}</td>
+                        <td class="py-3 px-4">${grade.course}</td>
+                        <td class="py-3 px-4">${grade.score}</td>
+                        <td class="py-3 px-4">
+                            <div class="flex space-x-2">
+                                <button class="edit-btn p-1.5 rounded-md bg-blue-50 text-primary hover:bg-blue-100 transition-colors" data-id="${grade.id}">
+                                    <i class="fa fa-pencil"></i>
+                                </button>
+                                <button class="delete-btn p-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 transition-colors" data-id="${grade.id}">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            gradesTableBody.innerHTML = html;
+
+            // 添加编辑和删除按钮事件
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    const grade = gradesData.find(g => g.id === id);
+                    if (grade) {
+                        openEditModal(grade);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    deleteGrade(id);
+                });
+            });
+        }
+
+        // 打开编辑模态框
+        function openEditModal(grade) {
+            document.getElementById('edit-student-id').value = grade.id;
+            document.getElementById('edit-student-no').value = grade.studentId;
+            document.getElementById('edit-student-name').value = grade.name;
+            document.getElementById('edit-student-course').value = grade.course;
+            document.getElementById('edit-student-score').value = grade.score;
+            editGradeModal.classList.remove('hidden');
+        }
+
+        // 删除成绩
+        function deleteGrade(id) {
+            if (confirm('确定要删除这条成绩记录吗？')) {
+                gradesData = gradesData.filter(grade => grade.id !== id);
+                updateGradesTable();
+                updateDashboardStats();
+                showNotification('成功', '成绩记录已删除', 'success');
+            }
+        }
+
+        // 更新仪表盘统计数据
+        function updateDashboardStats() {
+            const scores = gradesData.map(grade => grade.score);
+
+            // 计算学生总数
+            const students = [...new Set(gradesData.map(grade => grade.studentId))];
+            studentCount.textContent = students.length;
+
+            // 计算平均分
+            const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+            avgScore.textContent = averageScore.toFixed(1);
+            avgScoreValue.textContent = averageScore.toFixed(1);
+            avgScoreProgress.style.width = `${averageScore}%`;
+
+            // 计算最高分
+            const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+            maxScoreValue.textContent = maxScore;
+            maxScoreProgress.style.width = `${maxScore}%`;
+
+            // 计算最低分
+            const minScore = scores.length > 0 ? Math.min(...scores) : 0;
+            minScoreValue.textContent = minScore;
+            minScoreProgress.style.width = `${minScore}%`;
+
+            // 计算及格率
+            const passCount = scores.filter(score => score >= 60).length;
+            const passPercentage = scores.length > 0 ? (passCount / scores.length) * 100 : 0;
+            passRate.textContent = passPercentage.toFixed(1) + '%';
+            passRateValue.textContent = passPercentage.toFixed(1) + '%';
+            passRateProgress.style.width = `${passPercentage}%`;
+
+            // 计算课程数量
+            const courses = [...new Set(gradesData.map(grade => grade.course))];
+            courseCount.textContent = courses.length;
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 成绩分布图表
+            const distributionCtx = document.getElementById('distribution-chart').getContext('2d');
+            const distributionChart = new Chart(distributionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-59', '60-69', '70-79', '80-89', '90-100'],
+                    datasets: [{
+                        label: '学生数量',
+                        data: [2, 3, 5, 4, 6],
+                        backgroundColor: [
+                            'rgba(239, 68, 68, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(139, 92, 246, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgb(239, 68, 68)',
+                            'rgb(245, 158, 11)',
+                            'rgb(16, 185, 129)',
+                            'rgb(59, 130, 246)',
+                            'rgb(139, 92, 246)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // 课程对比图表
+            const comparisonCtx = document.getElementById('course-comparison-chart').getContext('2d');
+            const comparisonChart = new Chart(comparisonCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['数学', '语文', '英语', '物理', '化学'],
+                    datasets: [{
+                        label: '平均分',
+                        data: [85, 82, 88, 79, 83],
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(59, 130, 246)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                stepSize: 20
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 监听课程筛选变化
+            document.getElementById('distribution-filter').addEventListener('change', function () {
+                // 更新图表数据
+                const selectedCourse = this.value;
+                let data = [0, 0, 0, 0, 0];
+
+                // 根据选择的课程筛选数据
+                const courseGrades = gradesData.filter(grade => grade.course === selectedCourse);
+                courseGrades.forEach(grade => {
+                    if (grade.score < 60) data[0]++;
+                    else if (grade.score < 70) data[1]++;
+                    else if (grade.score < 80) data[2]++;
+                    else if (grade.score < 90) data[3]++;
+                    else data[4]++;
+                });
+
+                distributionChart.data.datasets[0].data = data;
+                distributionChart.update();
+            });
+        }
+
+        // 更新导出历史
+        function updateExportHistory() {
+            const exports = [
+                { id: 1, filename: '一年级一班数学成绩单', type: 'PDF', time: '2025-05-29 14:30' },
+                { id: 2, filename: '全年级成绩分析报告', type: 'PDF', time: '2025-05-28 09:15' },
+                { id: 3, filename: '一年级二班英语成绩单', type: 'PDF', time: '2025-05-27 16:45' }
+            ];
+
+            if (exports.length === 0) {
+                exportHistory.innerHTML = `
+                    <tr class="text-center">
+                        <td colspan="4" class="py-8 text-gray-400">
+                            <i class="fa fa-clock-o text-3xl mb-2"></i>
+                            <p>暂无导出记录</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            exports.forEach(exp => {
+                html += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="py-3 px-4">
+                            <div class="flex items-center">
+                                <i class="fa fa-file-pdf-o text-red-500 mr-2"></i>
+                                <span>${exp.filename}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">${exp.type}</td>
+                        <td class="py-3 px-4">${exp.time}</td>
+                        <td class="py-3 px-4">
+                            <div class="flex space-x-2">
+                                <button class="download-btn p-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors">
+                                    <i class="fa fa-download"></i>
+                                </button>
+                                <button class="delete-btn p-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            exportHistory.innerHTML = html;
+        }
+
+        // 显示通知
+        function showNotification(title, message, type = 'success') {
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+
+            // 设置图标和颜色
+            if (type === 'success') {
+                notificationIcon.className = 'fa fa-check text-white';
+                notificationIconContainer.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-green-500';
+            } else if (type === 'error') {
+                notificationIcon.className = 'fa fa-times text-white';
+                notificationIconContainer.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-500';
+            } else if (type === 'warning') {
+                notificationIcon.className = 'fa fa-exclamation text-white';
+                notificationIconContainer.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-yellow-500';
+            } else if (type === 'info') {
+                notificationIcon.className = 'fa fa-info text-white';
+                notificationIconContainer.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-blue-500';
+            }
+
+            // 显示通知
+            notification.classList.remove('translate-x-full');
+
+            // 3秒后自动关闭
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // 导出PDF成绩单
+        function exportToPDF() {
+            showNotification('成功', 'PDF成绩单已生成', 'success');
+
+            // 更新导出历史
+            updateExportHistory();
+        }
+
+        // 生成分析报告
+        function generateReport() {
+            showNotification('处理中', '正在生成分析报告，请稍候', 'info');
+
+            // 模拟生成报告延迟
+            setTimeout(() => {
+                showNotification('成功', '分析报告已生成', 'success');
+                updateExportHistory();
+            }, 2000);
+        }
+
+        // 解析Excel文件
+        function parseExcelFile(file) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // 获取第一个工作表
+                const worksheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[worksheetName];
+
+                // 转换为JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                // 处理数据
+                if (jsonData.length > 0) {
+                    // 假设Excel列名为：学号, 姓名, 课程, 成绩
+                    gradesData = jsonData.map((row, index) => {
+                        return {
+                            id: index + 1,
+                            studentId: row['学号'] || '',
+                            name: row['姓名'] || '',
+                            course: row['课程'] || '',
+                            score: parseInt(row['成绩']) || 0
+                        };
+                    });
+
+                    updateGradesTable();
+                    updateDashboardStats();
+                    showNotification('成功', 'Excel文件已成功导入', 'success');
+                } else {
+                    showNotification('错误', 'Excel文件中未找到有效数据', 'error');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 事件监听器
+        document.addEventListener('DOMContentLoaded', init);
+
+        // 文件上传相关
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('border-primary');
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('border-primary');
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('border-primary');
+
+            if (e.dataTransfer.files.length) {
+                const file = e.dataTransfer.files[0];
+                if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    file.type === 'application/vnd.ms-excel') {
+                    currentFile = file;
+                    fileName.textContent = file.name;
+                    fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+                    fileInfo.classList.remove('hidden');
+                } else {
+                    showNotification('错误', '请上传Excel文件 (.xlsx 或 .xls)', 'error');
+                }
+            }
+        });
+
+        fileUpload.addEventListener('change', () => {
+            if (fileUpload.files.length) {
+                const file = fileUpload.files[0];
+                if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    file.type === 'application/vnd.ms-excel') {
+                    currentFile = file;
+                    fileName.textContent = file.name;
+                    fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+                    fileInfo.classList.remove('hidden');
+                } else {
+                    showNotification('错误', '请上传Excel文件 (.xlsx 或 .xls)', 'error');
+                }
+            }
+        });
+
+        uploadBtn.addEventListener('click', () => {
+            if (currentFile) {
+                parseExcelFile(currentFile);
+                fileInfo.classList.add('hidden');
+            }
+        });
+
+        // 模态框相关
+        addStudentBtn.addEventListener('click', () => {
+            addStudentModal.classList.remove('hidden');
+        });
+
+        quickAddBtn.addEventListener('click', () => {
+            addStudentModal.classList.remove('hidden');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            addStudentModal.classList.add('hidden');
+        });
+
+        cancelAddBtn.addEventListener('click', () => {
+            addStudentModal.classList.add('hidden');
+        });
+
+        closeEditModalBtn.addEventListener('click', () => {
+            editGradeModal.classList.add('hidden');
+        });
+
+        cancelEditBtn.addEventListener('click', () => {
+            editGradeModal.classList.add('hidden');
+        });
+
+        // 添加学生表单提交
+        addStudentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(addStudentForm);
+            const newGrade = {
+                id: gradesData.length > 0 ? Math.max(...gradesData.map(g => g.id)) + 1 : 1,
+                studentId: formData.get('学号'),
+                name: formData.get('姓名'),
+                course: formData.get('课程'),
+                score: parseInt(formData.get('成绩'))
+            };
+
+            if (newGrade.studentId && newGrade.name && newGrade.course && !isNaN(newGrade.score)) {
+                gradesData.push(newGrade);
+                updateGradesTable();
+                updateDashboardStats();
+                addStudentModal.classList.add('hidden');
+                addStudentForm.reset();
+                showNotification('成功', '学生成绩已添加', 'success');
+            } else {
+                showNotification('错误', '请填写所有必填字段', 'error');
+            }
+        });
+
+        // 编辑成绩表单提交
+        editGradeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const id = parseInt(document.getElementById('edit-student-id').value);
+            const score = parseInt(document.getElementById('edit-student-score').value);
+
+            if (!isNaN(id) && !isNaN(score)) {
+                const index = gradesData.findIndex(g => g.id === id);
+                if (index !== -1) {
+                    gradesData[index].score = score;
+                    updateGradesTable();
+                    updateDashboardStats();
+                    editGradeModal.classList.add('hidden');
+                    showNotification('成功', '成绩已更新', 'success');
+                }
+            } else {
+                showNotification('错误', '无效的成绩值', 'error');
+            }
+        });
+
+        // 导出和报告按钮
+        exportPdfBtn.addEventListener('click', exportToPDF);
+        generateReportBtn.addEventListener('click', generateReport);
+
+        // 移动菜单按钮
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // 导航链接
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                // 移除所有活动状态
+                navLinks.forEach(l => l.classList.remove('active'));
+                // 添加当前活动状态
+                link.classList.add('active');
+
+                // 关闭移动菜单
+                mobileMenu.classList.add('hidden');
+            });
+        });
+
+        // 关闭通知
+        closeNotification.addEventListener('click', () => {
+            notification.classList.add('translate-x-full');
+        });
+    </script>
+</body>
+
+</html>
