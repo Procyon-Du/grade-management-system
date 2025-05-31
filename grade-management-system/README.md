@@ -65,6 +65,6 @@ grade-management-system/
 ## 联系我们
 
 如果你有任何问题或建议，请通过以下方式联系我们：
-- 邮箱：contact@example.com
+- 邮箱：d2101674978@163.com
 - 问题追踪：[GitHub Issues](https://github.com/Procyon-Du/grade-management-system/issues)
     
